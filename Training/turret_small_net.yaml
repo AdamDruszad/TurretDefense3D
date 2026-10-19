@@ -1,0 +1,61 @@
+# Comparison run: same as turret_config.yaml, but with a much smaller network (1 x 64 instead of 2 x 256)
+behaviors:
+  TurretAgent:                     # must match the Behavior Name in Unity
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 1024             # continuous PPO: 512 - 5120
+      buffer_size: 10240           # usually 10x batch_size
+      learning_rate: 3.0e-4
+      learning_rate_schedule: linear
+      beta: 5.0e-3                 # entropy bonus, keeps the agent exploring
+      epsilon: 0.2                 # PPO clipping
+      lambd: 0.95                  # GAE lambda
+      num_epoch: 3
+    network_settings:
+      normalize: true              # observations have different scales
+      hidden_units: 64
+      num_layers: 1
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+    time_horizon: 128
+    max_steps: 2.0e6
+    keep_checkpoints: 5
+    checkpoint_interval: 250000
+    summary_freq: 20000
+
+# Curriculum learning: the drones start static and get faster
+# every time the agent reaches the reward threshold of the current lesson.
+environment_parameters:
+  drone_speed:
+    curriculum:
+      - name: Static
+        completion_criteria:
+          measure: reward
+          behavior: TurretAgent
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 10.0
+        value: 0.0
+      - name: Slow
+        completion_criteria:
+          measure: reward
+          behavior: TurretAgent
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 8.0
+        value: 2.0
+      - name: Medium
+        completion_criteria:
+          measure: reward
+          behavior: TurretAgent
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 6.0
+        value: 4.0
+      - name: Fast
+        value: 6.0
+
+torch_settings:
+  device: cpu
