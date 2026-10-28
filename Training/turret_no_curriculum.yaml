@@ -26,6 +26,7 @@ behaviors:
     summary_freq: 20000
 
 environment_parameters:
+  obstacle_count: 3.0             # number of walls in each arena
   drone_speed: 6.0               # no curriculum: fast drones from the very first step
 
 torch_settings:
