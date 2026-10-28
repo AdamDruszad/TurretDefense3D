@@ -48,6 +48,7 @@ public class TurretAgent : Agent
     private float cooldownTimer;
     private float shotLineTimer;
     private float droneSpeed;
+    private float missPenalty;
 
     // Statistics of the current episode (shown in TensorBoard)
     private int hits;
@@ -86,6 +87,9 @@ public class TurretAgent : Agent
 
         // The drone speed comes from the YAML curriculum during training
         droneSpeed = Academy.Instance.EnvironmentParameters.GetWithDefault("drone_speed", DefaultDroneSpeed);
+
+        // The miss penalty can also be set from the YAML file
+        missPenalty = Academy.Instance.EnvironmentParameters.GetWithDefault("miss_penalty", MissPenalty);
         RespawnDrone();
     }
 
@@ -207,7 +211,7 @@ public class TurretAgent : Agent
         }
         else
         {
-            AddReward(-MissPenalty);
+            AddReward(-missPenalty);
         }
 
         ShowShot(shotEnd);

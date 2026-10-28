@@ -7,7 +7,7 @@ behaviors:
       buffer_size: 10240           # usually 10x batch_size
       learning_rate: 3.0e-4
       learning_rate_schedule: linear
-      beta: 5.0e-3                 # entropy bonus, keeps the agent exploring
+      beta: 1.0e-2                 # entropy bonus, keeps the agent exploring
       epsilon: 0.2                 # PPO clipping
       lambd: 0.95                  # GAE lambda
       num_epoch: 3
@@ -35,6 +35,7 @@ behaviors:
 # every time the agent reaches the reward threshold of the current lesson.
 environment_parameters:
   obstacle_count: 3.0             # number of walls in each arena
+  miss_penalty: 0.01              # was 0.05: the agent learned to never shoot (baseline_v3)
   drone_speed:
     curriculum:
       - name: Static
