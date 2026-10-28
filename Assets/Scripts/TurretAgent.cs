@@ -12,7 +12,7 @@ using UnityEngine;
 //
 // Observations:
 //   10 vector observations (see CollectObservations)
-//   + a RayPerceptionSensor3D on the muzzle that "sees" drones in front of the barrel
+//   + a RayPerceptionSensor3D on the muzzle that "sees" drones and obstacles in front of the barrel
 public class TurretAgent : Agent
 {
     [Header("Turret parts")]
@@ -20,6 +20,7 @@ public class TurretAgent : Agent
     public Transform PitchPivot;    // rotates around the X axis (up / down)
     public Transform Muzzle;        // tip of the barrel, shots start from here
     public Drone Drone;
+    public ObstacleSpawner Obstacles;   // optional, the walls of the arena
     public LineRenderer ShotLine;   // optional, only for visuals
 
     [Header("Turret settings")]
@@ -51,6 +52,7 @@ public class TurretAgent : Agent
     // Statistics of the current episode (shown in TensorBoard)
     private int hits;
     private int shots;
+    private int shotsIntoObstacles;
 
     // OnEpisodeBegin() gets called at the start of every episode
     public override void OnEpisodeBegin()
@@ -60,6 +62,7 @@ public class TurretAgent : Agent
         {
             var stats = Academy.Instance.StatsRecorder;
             stats.Add("Turret/Hits per episode", hits);
+            stats.Add("Turret/Shots into obstacles per episode", shotsIntoObstacles);
             if (shots > 0)
             {
                 stats.Add("Turret/Accuracy", (float)hits / shots);
@@ -67,6 +70,13 @@ public class TurretAgent : Agent
         }
         hits = 0;
         shots = 0;
+        shotsIntoObstacles = 0;
+
+        // Move the walls to new random places
+        if (Obstacles != null)
+        {
+            Obstacles.Randomize();
+        }
 
         // Reset the turret to a random direction
         YawPivot.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
@@ -76,7 +86,34 @@ public class TurretAgent : Agent
 
         // The drone speed comes from the YAML curriculum during training
         droneSpeed = Academy.Instance.EnvironmentParameters.GetWithDefault("drone_speed", DefaultDroneSpeed);
-        Drone.Respawn(droneSpeed);
+        RespawnDrone();
+    }
+
+    // Respawns the drone at a random place that is NOT hidden behind a wall.
+    // (A static drone behind a wall could never be hit.)
+    private void RespawnDrone()
+    {
+        for (int tries = 0; tries < 10; tries++)
+        {
+            Drone.Respawn(droneSpeed);
+            // The walls and the drone were moved by code, so we update the physics
+            // colliders before checking the line of sight
+            Physics.SyncTransforms();
+            if (DroneVisible())
+            {
+                return;
+            }
+        }
+    }
+
+    // Is there a clear line of sight from the turret head to the drone?
+    private bool DroneVisible()
+    {
+        if (Physics.Linecast(PitchPivot.position, Drone.transform.position, out RaycastHit hit))
+        {
+            return hit.collider.GetComponent<Drone>() == Drone;
+        }
+        return true;
     }
 
     // CollectObservations() supplies the "hard-coded" inputs of the agent.
@@ -154,13 +191,19 @@ public class TurretAgent : Agent
             shotEnd = hit.point;
             // We only count our own drone (and not the drones of the other arenas)
             hitDrone = hit.collider.GetComponent<Drone>() == Drone;
+
+            // A wall was in the way (only for the TensorBoard statistics)
+            if (hit.collider.GetComponentInParent<ObstacleSpawner>() != null)
+            {
+                shotsIntoObstacles++;
+            }
         }
 
         if (hitDrone)
         {
             hits++;
             AddReward(HitReward);
-            Drone.Respawn(droneSpeed);
+            RespawnDrone();
         }
         else
         {
