@@ -34,6 +34,7 @@ Thumbs.db
 
 # ML-Agents training output (TensorBoard logs + checkpoints, large)
 /Training/results/
+/Training/*.log
 __pycache__/
 
 # Asset store pack: only the used textures are kept (in Assets/Textures)
